@@ -1,16 +1,18 @@
-import { z } from 'zod';
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+
 import { defaultPolicy, protocolCommit } from '@skein-js/recall-delta';
+import { z } from 'zod';
+
 import { historicalContextByteLimit } from '../context.js';
-import { caseFamilies } from './cases.js';
-import { pairedInterval, runBenchmark, summarize } from './benchmark.js';
-import { runMechanics } from './mechanics.js';
 import { runAdversarial } from './adversarial.js';
+import { pairedInterval, runBenchmark, summarize } from './benchmark.js';
+import { caseFamilies } from './cases.js';
+import { acceptanceCriteria } from './criteria.js';
 import { hindsightAudit } from './hindsight.js';
 import { runLongitudinal } from './longitudinal.js';
+import { runMechanics } from './mechanics.js';
 import { runRetention } from './retention.js';
-import { acceptanceCriteria } from './criteria.js';
 import { gradeUsability } from './usability.js';
 
 mkdirSync('reports', { recursive: true });

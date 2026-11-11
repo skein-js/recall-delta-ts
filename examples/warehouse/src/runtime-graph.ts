@@ -1,10 +1,12 @@
 import { resolve } from 'node:path';
-import { createRecallDelta, type RecallDeltaClient } from '@skein-js/recall-delta';
+
+import { createRecallDelta } from '@skein-js/recall-delta';
 import { createSqliteRecallStore } from '@skein-js/recall-delta-sqlite';
-import { makeWarehouseGraph } from './graph.js';
+
+import { makeWarehouseGraph, type WarehouseMemory } from './graph.js';
 import { createVertexPlanner, fixturePlanner, type Planner } from './planner.js';
 
-let client: RecallDeltaClient | undefined;
+let client: WarehouseMemory | undefined;
 let planner: Promise<Planner> | undefined;
 function memory() {
   client ??= createRecallDelta({

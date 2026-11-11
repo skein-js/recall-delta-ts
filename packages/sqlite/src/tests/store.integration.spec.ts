@@ -1,9 +1,12 @@
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawnSync } from 'node:child_process';
+
+import { createRecallDelta, type ObserveRequest } from '@skein-js/recall-delta';
+import Database from 'better-sqlite3';
 import { afterEach, expect, it } from 'vitest';
-import { createRecallDelta } from '@skein-js/recall-delta';
+
 import { createSqliteRecallStore } from '../index.js';
 
 const directories: string[] = [];
@@ -17,7 +20,7 @@ function filename() {
   return join(directory, 'recall.sqlite');
 }
 const context = { tenantId: 'test', scopeId: 'private', principalId: 'alice' };
-const observation = {
+const observation: ObserveRequest = {
   requestId: 'ingest',
   observationId: 'event',
   kind: 'event',
@@ -75,5 +78,75 @@ it('survives process loss inside a transaction and preserves a previously acknow
     expect(createRecallDelta({ store: recovered, context }).observe(observation)).toEqual(receipt);
   } finally {
     recovered.close();
+  }
+});
+
+it('preserves scope ownership and interpretation targets after reopening', () => {
+  const path = filename();
+  let store = createSqliteRecallStore(path);
+  const a = createRecallDelta({ store, context });
+  const source = a.observe(observation);
+  const successor = a.observe({
+    ...observation,
+    requestId: 'successor',
+    observationId: 'successor',
+    content: {
+      statement: 'new dispatch procedure',
+      supersedesEvidenceId: source.evidenceId,
+      validTime: { from: '2026-12-01T00:00:00Z', until: null },
+    },
+  });
+  const before = a.experimental.inspect().memories;
+  store.close();
+  store = createSqliteRecallStore(path);
+  try {
+    const recovered = createRecallDelta({ store, context });
+    expect(recovered.experimental.inspect().memories).toEqual(before);
+    recovered.observe({
+      ...observation,
+      requestId: 'fix',
+      observationId: 'fix',
+      content: { statement: 'corrected successor', correctsEvidenceId: successor.evidenceId },
+    });
+    const after = recovered.experimental.inspect().memories;
+    expect(after[0]).toEqual(before[0]);
+    expect(after[1]?.versions.at(-1)?.content).toMatchObject({ statement: 'corrected successor' });
+    const bob = createRecallDelta({
+      store,
+      context: { ...context, principalId: 'bob' },
+      grant: () => ({
+        kind: 'group-shared',
+        readers: ['bob'],
+        writers: [],
+        feedbackWriters: [],
+        maintainers: [],
+      }),
+    });
+    expect(() => bob.readEvidence(source)).toThrow('scope_unavailable');
+  } finally {
+    store.close();
+  }
+});
+
+it('rejects legacy storage explicitly without rewriting its audience-ambiguous payload', () => {
+  const path = filename();
+  const legacy = new Database(path);
+  const payload = JSON.stringify({
+    schemaVersion: 1,
+    evidence: { original: 'retained legacy data' },
+  });
+  legacy.exec(
+    'CREATE TABLE recall_state (id INTEGER PRIMARY KEY CHECK (id=1), schema_version INTEGER NOT NULL CHECK (schema_version=1), payload TEXT NOT NULL)',
+  );
+  legacy.prepare('INSERT INTO recall_state VALUES (1, 1, ?)').run(payload);
+  legacy.close();
+  expect(() => createSqliteRecallStore(path)).toThrow('Unsupported Recall Delta storage schema');
+  const preserved = new Database(path, { readonly: true });
+  try {
+    expect(preserved.prepare('SELECT payload FROM recall_state WHERE id=1').get()).toEqual({
+      payload,
+    });
+  } finally {
+    preserved.close();
   }
 });

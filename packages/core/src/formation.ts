@@ -1,32 +1,31 @@
 import { z } from 'zod';
-import { validTimeSchema, type Json } from './contracts.js';
-import { RecallError, type Environment } from './environment.js';
+
+import { idSchema, type Json, validTimeSchema } from './contracts.js';
+import { type Environment, parse, RecallError } from './environment.js';
 import { clamp, cueSimilarity, extractCues, retentionFingerprint } from './policy.js';
-import { nextId, type Evidence, type MemoryRecord, type StoreState } from './store.js';
+import { type Evidence, type MemoryRecord, nextId, type StoreState } from './store.js';
+import { compareInstants } from './time.js';
 
 const interpretationSchema = z
   .object({
-    correctsEvidenceId: z.string().optional(),
-    supersedesEvidenceId: z.string().optional(),
+    correctsEvidenceId: idSchema.optional(),
+    supersedesEvidenceId: idSchema.optional(),
     validTime: validTimeSchema.nullable().optional(),
   })
-  .passthrough();
+  .passthrough()
+  .refine(
+    (value) => !(value.correctsEvidenceId && value.supersedesEvidenceId),
+    'Choose one interpretation target',
+  );
 export function interpret(content: Json) {
-  const result = interpretationSchema.safeParse(content);
-  return result.success ? result.data : {};
+  if (content === null || typeof content !== 'object' || Array.isArray(content)) return {};
+  return parse(interpretationSchema, content);
 }
 export function formMemory(env: Environment, state: StoreState, source: Evidence): string {
   const details = interpret(source.content),
     cues = extractCues(source.content),
     now = env.clock();
   const previousId = details.correctsEvidenceId ?? details.supersedesEvidenceId;
-  const previous = previousId
-    ? Object.values(state.memories).find(
-        (memory) =>
-          memory.scopeKey === env.scopeKey &&
-          memory.versions.some((version) => version.evidenceIds.includes(previousId)),
-      )
-    : undefined;
   if (previousId) env.evidence(state, previousId);
   if (previousId && state.processing[previousId]?.status !== 'completed')
     throw new RecallError(
@@ -34,6 +33,19 @@ export function formMemory(env: Environment, state: StoreState, source: Evidence
       'Referenced experience must be processed first',
       true,
     );
+  const matches = previousId
+    ? Object.values(state.memories).filter(
+        (memory) =>
+          memory.scopeKey === env.scopeKey &&
+          memory.versions.some((version) => version.interpretationEvidenceId === previousId),
+      )
+    : [];
+  if (previousId && matches.length !== 1)
+    throw new RecallError('evidence_unavailable', 'A unique retained interpretation is required');
+  const previous = matches[0];
+  previous?.versions.forEach((version) =>
+    version.evidenceIds.forEach((id) => env.evidence(state, id)),
+  );
   const previousVersion = previous?.versions.at(-1);
   if (previous && previousVersion && details.correctsEvidenceId) {
     previous.versions.push({
@@ -42,6 +54,7 @@ export function formMemory(env: Environment, state: StoreState, source: Evidence
       content: source.content,
       evidenceIds: [...new Set([...previousVersion.evidenceIds, source.evidenceId])],
       validTime: details.validTime ?? previousVersion.validTime,
+      interpretationEvidenceId: source.evidenceId,
       cause: 'correction',
     });
     previous.cues = cues;
@@ -75,6 +88,7 @@ export function formMemory(env: Environment, state: StoreState, source: Evidence
         content: source.content,
         evidenceIds: [source.evidenceId],
         validTime: details.validTime ?? null,
+        interpretationEvidenceId: source.evidenceId,
         cause: 'formed',
       },
     ],
@@ -98,11 +112,13 @@ export function formMemory(env: Environment, state: StoreState, source: Evidence
   return memoryId;
 }
 export function selectVersion(memory: MemoryRecord, knownAt: string, validAt: string) {
-  const version = memory.versions.filter((entry) => entry.recordedAt <= knownAt).at(-1);
+  const version = memory.versions
+    .filter((entry) => compareInstants(entry.recordedAt, knownAt) <= 0)
+    .at(-1);
   if (
     !version ||
-    (version.validTime?.from && version.validTime.from > validAt) ||
-    (version.validTime?.until && version.validTime.until <= validAt)
+    (version.validTime?.from && compareInstants(version.validTime.from, validAt) > 0) ||
+    (version.validTime?.until && compareInstants(version.validTime.until, validAt) <= 0)
   )
     return undefined;
   return version;

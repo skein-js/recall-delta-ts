@@ -1,4 +1,7 @@
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import { z } from 'zod';
+
 import type { Json } from './contracts.js';
 
 export const policySchema = z.object({
@@ -94,4 +97,9 @@ export function retentionFingerprint(policy: MemoryPolicy): string {
     dormantBelow: policy.dormantBelow,
     graceMs: policy.graceMs,
   });
+}
+
+export function createEngineProfile(policy: MemoryPolicy): string {
+  const digest = sha256(new TextEncoder().encode(canonical(policy)));
+  return `recall-delta:reference-v2:sha256:${bytesToHex(digest)}`;
 }

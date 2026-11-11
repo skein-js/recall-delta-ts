@@ -1,15 +1,14 @@
-import { z } from 'zod';
-import { idSchema, mutationSchema, observationSchema } from './contracts.js';
-import { parse, RecallError, type Environment } from './environment.js';
+import { observationSchema, observeReceiptSchema, observeRequestSchema } from './contracts.js';
+import { type Environment, parse, RecallError } from './environment.js';
+import { processEvidenceRequestSchema, processEvidenceResultSchema } from './extensions.js';
 import { formMemory } from './formation.js';
 import { canonical, retainedBytes } from './policy.js';
 import { nextId } from './store.js';
 
-const receiptSchema = z.object({ evidenceId: idSchema });
 export function observe(env: Environment, input: unknown) {
-  const request = parse(observationSchema.extend({ requestId: idSchema }), input);
+  const request = parse(observeRequestSchema, input);
   if (retainedBytes(request) > 65_536) throw new RecallError('limit_exceeded');
-  return env.mutate('observe', request, receiptSchema, (state) => {
+  return env.mutate('observe', request, observeReceiptSchema, (state) => {
     const observation = observationSchema.parse(request);
     const existing = Object.values(state.evidence).find(
       (record) =>
@@ -50,17 +49,9 @@ export function observe(env: Environment, input: unknown) {
   });
 }
 export function processEvidence(env: Environment, input: unknown) {
-  const request = parse(
-    mutationSchema.extend({ evidenceId: idSchema, fail: z.boolean().optional() }),
-    input,
-  );
+  const request = parse(processEvidenceRequestSchema, input);
   env.grant('write');
-  const resultSchema = z.object({
-    evidenceId: idSchema,
-    status: z.enum(['completed', 'failed']),
-    error: z.string().nullable(),
-  });
-  return env.mutate('processEvidence', request, resultSchema, (state) => {
+  return env.mutate('processEvidence', request, processEvidenceResultSchema, (state) => {
     const record = env.evidence(state, request.evidenceId),
       prior = state.processing[record.evidenceId];
     if (prior?.status === 'completed')

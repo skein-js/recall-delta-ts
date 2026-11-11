@@ -1,10 +1,10 @@
 import {
-  batchSchema,
-  snapshotSchema,
   type Batch,
+  batchSchema,
   type Candidate,
   type Change,
   type Snapshot,
+  snapshotSchema,
 } from './contracts.js';
 import { canonical } from './policy.js';
 

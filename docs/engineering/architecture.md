@@ -14,7 +14,11 @@ workspace:* dependencies, and supported library generators; never import another
 
 The SQLite adapter deliberately stores a versioned JSON snapshot under an immediate transaction.
 This gives an inspectable atomic PoC boundary, not scalable per-record indexing or migrations for
-other schema versions. Unknown persisted versions are rejected. Skein owns a separate SQLite file.
+other schema versions. The reference-engine SPI is exported under storage/v2, separate from the
+portable nine-operation client and explicit experimental capability interfaces. Schema 2 persists
+scope kind/ownership and primary interpretation relationships. Older snapshots require an explicit,
+authorized migration; never infer their original audience from a new binding. Skein owns a separate
+SQLite file.
 
 Only trusted host bindings establish principal/scope/grants. The demo uses fixed fixture identities;
 it supplies no production authentication server. Source content never supplies authority.

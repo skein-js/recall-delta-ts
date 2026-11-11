@@ -1,7 +1,10 @@
 import { performance } from 'node:perf_hooks';
-import { createMemoryRecallStore, createRecallDelta, defaultPolicy } from '@skein-js/recall-delta';
-import { makeWarehouseGraph } from '../graph.js';
+
+import type { defaultPolicy } from '@skein-js/recall-delta';
+import { createMemoryRecallStore, createRecallDelta } from '@skein-js/recall-delta';
+
 import type { Mode } from '../domain.js';
+import { makeWarehouseGraph } from '../graph.js';
 import type { CaseFamily } from './cases.js';
 
 export interface Measurement {

@@ -1,35 +1,25 @@
-import { z } from 'zod';
 import {
   advanceSchema,
   batchSchema,
-  idSchema,
-  mutationSchema,
+  closeSessionRequestSchema,
+  openSessionRequestSchema,
   protocolVersion,
-  snapshotSchema,
-  timeSchema,
-  versionSchema,
   type Snapshot,
+  snapshotSchema,
 } from './contracts.js';
 import { diffCandidates } from './deltas.js';
-import { parse, RecallError, type Environment } from './environment.js';
+import { type Environment, parse, RecallError } from './environment.js';
 import { retainedBytes } from './policy.js';
 import { recall } from './recall.js';
 import { nextId } from './store.js';
 
 export function openSession(env: Environment, input: unknown): Snapshot {
-  const request = parse(
-    mutationSchema.extend({
-      protocolVersion: z.string(),
-      taskRef: idSchema,
-      expiresAt: timeSchema,
-    }),
-    input,
-  );
-  if (request.protocolVersion !== protocolVersion) throw new RecallError('unsupported_version');
-  const expiresAt = Date.parse(request.expiresAt);
-  if (expiresAt <= env.clock()) throw new RecallError('invalid_request');
-  if (expiresAt > env.clock() + env.policy.sessionMs) throw new RecallError('limit_exceeded');
+  const request = parse(openSessionRequestSchema, input);
   return env.mutate('openSession', request, snapshotSchema, (state) => {
+    if (request.protocolVersion !== protocolVersion) throw new RecallError('unsupported_version');
+    const expiresAt = Date.parse(request.expiresAt);
+    if (expiresAt <= env.clock()) throw new RecallError('invalid_request');
+    if (expiresAt > env.clock() + env.policy.sessionMs) throw new RecallError('limit_exceeded');
     const sessionId = nextId(state, 'session');
     const snapshot: Snapshot = {
       sessionId,
@@ -81,10 +71,7 @@ export function advanceSession(env: Environment, input: unknown) {
   });
 }
 export function closeSession(env: Environment, input: unknown) {
-  const request = parse(
-    mutationSchema.extend({ sessionId: idSchema, expectedVersion: versionSchema }),
-    input,
-  );
+  const request = parse(closeSessionRequestSchema, input);
   return env.mutate('closeSession', request, batchSchema, (state) => {
     const session = env.session(state, request.sessionId, true);
     if (session.snapshot.version !== request.expectedVersion)

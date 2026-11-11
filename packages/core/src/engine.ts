@@ -1,21 +1,43 @@
-import { z } from 'zod';
+import type { RecallDeltaClient, Synchronous } from './client.js';
 import {
-  idSchema,
+  capabilitiesSchema,
+  evidenceSchema,
   protocolCommit,
   protocolVersion,
+  readDeltasRequestSchema,
+  readDeltasResultSchema,
+  readEvidenceRequestSchema,
   sessionRequestSchema,
   snapshotSchema,
-  versionSchema,
 } from './contracts.js';
 import { createEnvironment, parse, RecallError, type RecallOptions } from './environment.js';
+import {
+  type AccountingCapability,
+  type InspectionCapability,
+  inspectionResultSchema,
+  type ProcessingCapability,
+  processingResultSchema,
+  type RetentionCapability,
+  type RevocationCapability,
+} from './extensions.js';
 import { recordFeedback } from './feedback.js';
 import { maintain, protectMemory, revokeEvidence } from './maintenance.js';
 import { observe, processEvidence } from './observations.js';
 import { retainedBytes } from './policy.js';
 import { advanceSession, closeSession, openSession } from './sessions.js';
 
+export type RecallDeltaEngine = Synchronous<RecallDeltaClient> & {
+  experimental: Synchronous<
+    ProcessingCapability &
+      InspectionCapability &
+      AccountingCapability &
+      RevocationCapability &
+      RetentionCapability
+  >;
+};
+
 /** In-process reference engine. Authentication belongs to the trusted host binding. */
-export function createRecallDelta(options: RecallOptions) {
+export function createRecallDelta(options: RecallOptions): RecallDeltaEngine {
   const env = createEnvironment(options);
   function readSession(input: unknown) {
     const request = parse(sessionRequestSchema, input);
@@ -32,7 +54,7 @@ export function createRecallDelta(options: RecallOptions) {
   return {
     describe() {
       env.grant('read');
-      return {
+      return capabilitiesSchema.parse({
         protocolVersions: [protocolVersion],
         protocolCommit,
         engineProfile: env.engineProfile,
@@ -54,19 +76,19 @@ export function createRecallDelta(options: RecallOptions) {
           'temporal-query',
           'retention',
         ],
-      };
+      });
     },
-    observe: (input: unknown) => observe(env, input),
-    readEvidence(input: unknown) {
-      const request = parse(z.object({ evidenceId: idSchema }), input);
+    observe: (input) => observe(env, input),
+    readEvidence(input) {
+      const request = parse(readEvidenceRequestSchema, input);
       env.grant('read');
-      return env.evidence(env.store.read(), request.evidenceId);
+      return evidenceSchema.parse(env.evidence(env.store.read(), request.evidenceId));
     },
-    openSession: (input: unknown) => openSession(env, input),
-    advanceSession: (input: unknown) => advanceSession(env, input),
+    openSession: (input) => openSession(env, input),
+    advanceSession: (input) => advanceSession(env, input),
     readSession,
-    readDeltas(input: unknown) {
-      const request = parse(sessionRequestSchema.extend({ afterVersion: versionSchema }), input);
+    readDeltas(input) {
+      const request = parse(readDeltasRequestSchema, input);
       env.grant('read');
       const session = env.session(env.store.read(), request.sessionId);
       if (session.snapshot.status === 'open' && env.clock() >= session.expiresAt)
@@ -89,25 +111,28 @@ export function createRecallDelta(options: RecallOptions) {
                 );
           candidate?.evidenceRefs.forEach((ref) => env.evidence(env.store.read(), ref.evidenceId));
         }
-      return { batches, throughVersion: batches.at(-1)?.toVersion ?? request.afterVersion };
+      return readDeltasResultSchema.parse({
+        batches,
+        throughVersion: batches.at(-1)?.toVersion ?? request.afterVersion,
+      });
     },
-    recordFeedback: (input: unknown) => recordFeedback(env, input),
-    closeSession: (input: unknown) => closeSession(env, input),
+    recordFeedback: (input) => recordFeedback(env, input),
+    closeSession: (input) => closeSession(env, input),
     experimental: {
-      processEvidence: (input: unknown) => processEvidence(env, input),
-      readProcessing(input: unknown) {
-        const request = parse(z.object({ evidenceId: idSchema }), input);
+      processEvidence: (input) => processEvidence(env, input),
+      readProcessing(input) {
+        const request = parse(readEvidenceRequestSchema, input);
         env.grant('read');
         const state = env.store.read();
         env.evidence(state, request.evidenceId);
         const status = state.processing[request.evidenceId];
         if (!status) throw new RecallError('evidence_unavailable');
-        return status;
+        return processingResultSchema.parse(status);
       },
       inspect() {
         env.grant('read');
         const state = env.store.read();
-        return {
+        return inspectionResultSchema.parse({
           evidence: Object.values(state.evidence).filter((record) =>
             env.canRead(state, record.evidenceId),
           ),
@@ -133,7 +158,7 @@ export function createRecallDelta(options: RecallOptions) {
                   candidate.evidenceRefs.every((ref) => env.canRead(state, ref.evidenceId)),
               ),
           ),
-        };
+        });
       },
       accounting() {
         env.grant('maintain');
@@ -150,15 +175,9 @@ export function createRecallDelta(options: RecallOptions) {
             'canonical UTF-8 application payload, including evidence, memories, history, receipts, learning and eviction records',
         };
       },
-      revokeEvidence: (input: unknown) => revokeEvidence(env, input),
-      protectMemory: (input: unknown) => protectMemory(env, input),
-      maintain: (input: unknown) => maintain(env, input),
+      revokeEvidence: (input) => revokeEvidence(env, input),
+      protectMemory: (input) => protectMemory(env, input),
+      maintain: (input) => maintain(env, input),
     },
   };
 }
-type AwaitableMethods<T> = {
-  [K in keyof T]: T[K] extends (...args: infer A) => infer R
-    ? (...args: A) => R | Promise<R>
-    : AwaitableMethods<T[K]>;
-};
-export type RecallDeltaClient = AwaitableMethods<ReturnType<typeof createRecallDelta>>;

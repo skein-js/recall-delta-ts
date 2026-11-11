@@ -5,7 +5,10 @@ createSqliteRecallStore, then supply its result as the engine's store. Close the
 
 An immediate SQLite transaction atomically commits a validated, schema-versioned JSON snapshot.
 WAL and synchronous FULL protect committed state; failed callbacks roll back. Unsupported stored
-schemas fail validation. This simple layout is suitable for the PoC, not large-scale indexing.
+schemas are rejected explicitly at opening. Schema 2 records scope ownership and interpretation
+identity. Schema 1 is not automatically migrated: its original audience cannot be recovered safely.
+Keep the old database and use a new filename for a fresh PoC, or provide an explicitly authorized
+migration with verified audience mappings. The adapter never relabels or rewrites a legacy payload. This simple layout is suitable for the PoC, not large-scale indexing.
 
 allocatedBytes reports the database, WAL and SHM files. Logical payload eviction does not promise
 that allocated files shrink. Use a separate filename from Skein's exclusively owned workflow file.

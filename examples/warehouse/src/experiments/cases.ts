@@ -1,5 +1,5 @@
-import { report } from '../scenario.js';
 import type { Plan, WarehouseInput } from '../domain.js';
+import { report } from '../scenario.js';
 export interface CaseFamily {
   familyId: string;
   split: 'development' | 'heldout';

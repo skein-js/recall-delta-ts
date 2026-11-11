@@ -7,19 +7,22 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "prettier --write ."
-      }
+      },
+      "cache": false
     },
     "format-check": {
       "executor": "nx:run-commands",
       "options": {
         "command": "prettier --check ."
-      }
+      },
+      "cache": false
     },
     "pre-commit": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "tsx tools/check-staged.ts"
-      }
+        "command": "tsx tools/pre-commit.ts"
+      },
+      "cache": false
     },
     "verify": {
       "executor": "nx:run-commands",
@@ -50,6 +53,13 @@
       ],
       "options": {
         "command": "eslint tools eslint.config.mjs"
+      }
+    },
+    "lint-fix": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "eslint . --fix"
       }
     }
   }

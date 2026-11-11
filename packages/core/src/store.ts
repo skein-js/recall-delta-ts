@@ -1,10 +1,15 @@
 import { z } from 'zod';
+
 import {
   batchSchema,
   candidateSchema,
+  contextSchema,
+  idSchema,
   jsonSchema,
   observationSchema,
+  scopeKindSchema,
   snapshotSchema,
+  timeSchema,
   validTimeSchema,
 } from './contracts.js';
 
@@ -12,12 +17,13 @@ export const evidenceSchema = observationSchema.extend({
   evidenceId: z.string(),
   scopeKey: z.string(),
   principalId: z.string(),
-  recordedAt: z.string(),
+  recordedAt: timeSchema,
   revoked: z.boolean(),
 });
 const memoryVersionSchema = z.object({
-  revision: z.number(),
-  recordedAt: z.string(),
+  interpretationEvidenceId: idSchema,
+  revision: z.number().int().positive(),
+  recordedAt: timeSchema,
   content: jsonSchema,
   evidenceIds: z.array(z.string()),
   validTime: validTimeSchema.nullable(),
@@ -52,8 +58,17 @@ const processingSchema = z.object({
   status: z.enum(['pending', 'completed', 'failed']),
   error: z.string().nullable(),
 });
+export const storageSchemaVersion = 2;
+const scopeSchema = contextSchema
+  .omit({ principalId: true })
+  .extend({
+    kind: scopeKindSchema,
+    ownerId: idSchema.nullable(),
+  })
+  .refine((scope) => (scope.kind === 'user-private') === (scope.ownerId !== null));
 export const storeStateSchema = z.object({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(storageSchemaVersion),
+  scopes: z.record(z.string(), scopeSchema),
   sequence: z.number().int().nonnegative(),
   evidence: z.record(z.string(), evidenceSchema),
   memories: z.record(z.string(), memorySchema),
@@ -102,7 +117,8 @@ export interface RecallStore {
 }
 export function emptyStoreState(): StoreState {
   return {
-    schemaVersion: 1,
+    schemaVersion: storageSchemaVersion,
+    scopes: {},
     sequence: 0,
     evidence: {},
     memories: {},

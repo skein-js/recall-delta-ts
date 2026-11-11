@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
+
 import {
   createMemoryRecallStore,
   createRecallDelta,
   protocolVersion,
 } from '@skein-js/recall-delta';
+
 import { makeWarehouseGraph } from '../graph.js';
 import { report } from '../scenario.js';
 
@@ -100,10 +102,9 @@ export async function runMechanics() {
     requestId: 'revoke',
     evidenceId: correctionSource.evidenceId,
   });
-  assert.throws(
-    () => memory.readSession({ sessionId: corrected.view.snapshot?.sessionId }),
-    /session_unavailable/,
-  );
+  const correctedSessionId = corrected.view.snapshot?.sessionId;
+  assert.ok(correctedSessionId);
+  assert.throws(() => memory.readSession({ sessionId: correctedSessionId }), /session_unavailable/);
   const recovered = await graph.invoke({
     ...input,
     runId: 'revoked',

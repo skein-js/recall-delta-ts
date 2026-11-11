@@ -3,6 +3,11 @@
 From the workspace root, run `pnpm demo` for the native Skein journey or `pnpm dev` for the console.
 The graph uses the same Recall Delta library as the framework-free example. Its default planner is
 an explicitly labeled deterministic fixture. It never calls a provider unless Vertex is selected.
+The host requires the portable nine-operation client plus `ProcessingCapability` for its readiness
+step; it does not require inspection, revocation, or retention administration.
+Skein externalizes installed dependencies in its artifact. The example therefore declares the
+pinned hash runtime dependency as well as the workspace libraries, so local artifact execution can
+resolve the same externals listed in Skein's generated production manifest.
 
 In the Skein console, choose warehouse and submit:
 

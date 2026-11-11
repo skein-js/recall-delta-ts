@@ -1,12 +1,14 @@
-import { z } from 'zod';
-import { planSchema } from './domain.js';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { embedSqliteGraphs } from '@skein-js/local';
+
 import { createProtocolRuntime } from '@skein-js/agent-protocol';
+import { embedSqliteGraphs } from '@skein-js/local';
 import { createRecallDelta } from '@skein-js/recall-delta';
 import { createSqliteRecallStore } from '@skein-js/recall-delta-sqlite';
+import { z } from 'zod';
+
+import { planSchema } from './domain.js';
 import { makeWarehouseGraph } from './graph.js';
 import { createVertexPlanner } from './planner.js';
 import { demoSteps } from './scenario.js';

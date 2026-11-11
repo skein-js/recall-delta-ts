@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
 import { createMemoryRecallStore, createRecallDelta } from '@skein-js/recall-delta';
 import { createSqliteRecallStore } from '@skein-js/recall-delta-sqlite';
+
 import { report } from '../scenario.js';
 
 export function runRetention() {

@@ -16,13 +16,16 @@
     "test": "nx run-many -t test",
     "test:integration": "nx run-many -t test-integration",
     "build": "nx run-many -t build",
-    "verify": "nx run workspace:verify --output-style=static"
+    "verify": "nx run workspace:verify --output-style=static",
+    "lint:fix": "nx run workspace:lint-fix",
+    "fix": "pnpm lint:fix && pnpm format"
   },
   "private": true,
   "dependencies": {},
   "devDependencies": {
     "@eslint/js": "^9.39.0",
     "@nx/eslint": "23.3.1",
+    "@nx/eslint-plugin": "23.3.1",
     "@nx/js": "23.3.1",
     "@nx/vitest": "23.3.1",
     "@skein-js/nx": "1.0.0-beta.1",
@@ -33,7 +36,9 @@
     "@types/node": "^24.0.0",
     "eslint": "^9.39.0",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-simple-import-sort": "14.0.0",
     "husky": "9.1.7",
+    "lint-staged": "17.6.0",
     "nx": "23.3.1",
     "prettier": "3.9.6",
     "tslib": "^2.3.0",
@@ -41,8 +46,7 @@
     "typescript": "5.9.3",
     "typescript-eslint": "^8.57.0",
     "vite": "8.1.6",
-    "vitest": "5.1.0",
-    "@nx/eslint-plugin": "23.3.1"
+    "vitest": "5.1.0"
   },
   "packageManager": "pnpm@12.18.0",
   "engines": {

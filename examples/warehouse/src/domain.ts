@@ -1,5 +1,5 @@
-import { z } from 'zod';
 import { candidateSchema, observationSchema, snapshotSchema } from '@skein-js/recall-delta';
+import { z } from 'zod';
 
 export const modeSchema = z.enum(['context', 'summary', 'retrieval', 'associative']);
 export type Mode = z.infer<typeof modeSchema>;

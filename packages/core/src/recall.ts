@@ -84,7 +84,7 @@ export function recall(
     const overlay = canonical([env.scopeKey, env.context.principalId, entry.memory.memoryId]);
     state.overlays[overlay] = clamp((state.overlays[overlay] ?? 0) + 0.01);
     // Shared base retention is intentionally unaffected by private retrieval activity.
-    if (env.grant('read').kind === 'user-private') {
+    if (env.grant('read', state).kind === 'user-private') {
       if (entry.memory.retentionPolicy !== retentionFingerprint(env.policy)) {
         entry.memory.retentionPolicy = retentionFingerprint(env.policy);
         entry.memory.evaluatedAt = env.clock();

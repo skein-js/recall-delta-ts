@@ -1,14 +1,16 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { createServer } from 'node:net';
 import { setTimeout as delay } from 'node:timers/promises';
+import { fileURLToPath } from 'node:url';
+
 import { z } from 'zod';
-import { demoSteps } from '../scenario.js';
+
 import { planSchema } from '../domain.js';
+import { demoSteps } from '../scenario.js';
 
 const directory = mkdtempSync(join(tmpdir(), 'recall-artifact-'));
 const executable = fileURLToPath(import.meta.resolve('skein-js'));

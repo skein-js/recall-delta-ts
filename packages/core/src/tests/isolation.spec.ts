@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest';
+
 import { createRecallDelta } from '../index.js';
 import { harness, instant, observation } from './harness.js';
 
@@ -10,8 +11,8 @@ it('excludes another private owner before recall and keeps sessions caller-owned
     context: { tenantId: 'tenant', scopeId: 'private', principalId: 'bob' },
     clock: () => instant,
   });
-  expect(() => bob.readEvidence(source)).toThrow('evidence_unavailable');
-  expect(bob.experimental.inspect().memories).toEqual([]);
+  expect(() => bob.readEvidence(source)).toThrow('scope_unavailable');
+  expect(() => bob.experimental.inspect()).toThrow('scope_unavailable');
   const grant = () => ({
     kind: 'group-shared' as const,
     feedbackWriters: ['alice'],

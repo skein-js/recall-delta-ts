@@ -1,7 +1,13 @@
 import { mkdirSync, statSync } from 'node:fs';
 import { dirname, isAbsolute } from 'node:path';
+
+import {
+  emptyStoreState,
+  type RecallStore,
+  storageSchemaVersion,
+  storeStateSchema,
+} from '@skein-js/recall-delta/storage/v2';
 import Database from 'better-sqlite3';
-import { emptyStoreState, storeStateSchema, type RecallStore } from '@skein-js/recall-delta';
 
 /** A deliberately small transactional JSON snapshot store, not a scalable database schema. */
 export function createSqliteRecallStore(
@@ -10,20 +16,37 @@ export function createSqliteRecallStore(
   if (!isAbsolute(filename)) throw new Error('SQLite filename must be absolute');
   mkdirSync(dirname(filename), { recursive: true });
   const database = new Database(filename, { timeout: 5000 });
-  database.pragma('journal_mode = WAL');
-  database.pragma('synchronous = FULL');
-  database.exec(
-    'CREATE TABLE IF NOT EXISTS recall_state (id INTEGER PRIMARY KEY CHECK (id=1), schema_version INTEGER NOT NULL CHECK (schema_version=1), payload TEXT NOT NULL)',
-  );
-  database
-    .prepare('INSERT OR IGNORE INTO recall_state VALUES (1, 1, ?)')
-    .run(JSON.stringify(emptyStoreState()));
-  const rowSchema = storeStateSchema.transform((state) => state);
   function read() {
-    const row = database.prepare('SELECT payload FROM recall_state WHERE id=1').get();
+    const row = database
+      .prepare('SELECT schema_version, payload FROM recall_state WHERE id=1')
+      .get();
     if (!row || typeof row !== 'object' || !('payload' in row) || typeof row.payload !== 'string')
       throw new Error('Invalid SQLite state row');
-    return rowSchema.parse(JSON.parse(row.payload));
+    if (!('schema_version' in row) || row.schema_version !== storageSchemaVersion)
+      throw new Error(
+        `Unsupported Recall Delta storage schema; expected ${storageSchemaVersion}. Explicit migration is required.`,
+      );
+    return storeStateSchema.parse(JSON.parse(row.payload));
+  }
+  try {
+    database.pragma('journal_mode = WAL');
+    database.pragma('synchronous = FULL');
+    database.exec(
+      'CREATE TABLE IF NOT EXISTS recall_state (id INTEGER PRIMARY KEY CHECK (id=1), schema_version INTEGER NOT NULL, payload TEXT NOT NULL)',
+    );
+    database
+      .transaction(() => {
+        const existing = database.prepare('SELECT id FROM recall_state WHERE id=1').get();
+        if (!existing)
+          database
+            .prepare('INSERT INTO recall_state VALUES (1, ?, ?)')
+            .run(storageSchemaVersion, JSON.stringify(emptyStoreState()));
+        read();
+      })
+      .immediate();
+  } catch (error) {
+    database.close();
+    throw error;
   }
   return {
     durable: true,

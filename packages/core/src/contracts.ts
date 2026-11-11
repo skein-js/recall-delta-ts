@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { compareInstants } from './time.js';
+
 export const protocolVersion = '0.1-draft.4';
 export const protocolCommit = '88f346269e1adaac50ccaebbdfc0a1257b3f8097';
 export const jsonSchema = z.json();
@@ -11,7 +13,7 @@ const estimate = z.number().min(0).max(1).nullable();
 export const validTimeSchema = z
   .object({ from: timeSchema.nullable(), until: timeSchema.nullable() })
   .refine(
-    (value) => !value.from || !value.until || value.from < value.until,
+    (value) => !value.from || !value.until || compareInstants(value.from, value.until) < 0,
     'Invalid validity interval',
   );
 export const observationSchema = z.object({
@@ -83,8 +85,14 @@ export const contextSchema = z.object({
   scopeId: idSchema,
   principalId: idSchema,
 });
+export const scopeKindSchema = z.enum([
+  'user-private',
+  'conversation',
+  'group-shared',
+  'tenant-shared',
+]);
 export const scopeGrantSchema = z.object({
-  kind: z.enum(['user-private', 'conversation', 'group-shared', 'tenant-shared']),
+  kind: scopeKindSchema,
   feedbackWriters: z.array(idSchema).default([]),
   readers: z.array(idSchema),
   writers: z.array(idSchema),
@@ -121,3 +129,62 @@ export type Batch = z.infer<typeof batchSchema>;
 export type Snapshot = z.infer<typeof snapshotSchema>;
 export type CallerContext = z.infer<typeof contextSchema>;
 export type ScopeGrant = z.infer<typeof scopeGrantSchema>;
+
+export const observeRequestSchema = observationSchema.extend({ requestId: idSchema });
+export const observeReceiptSchema = z.object({ evidenceId: idSchema });
+export const readEvidenceRequestSchema = z.object({ evidenceId: idSchema });
+/** Public source DTO, independent of the reference engine's storage keys. */
+export const evidenceSchema = observationSchema.extend({
+  evidenceId: idSchema,
+  principalId: idSchema,
+  recordedAt: timeSchema,
+});
+export const openSessionRequestSchema = mutationSchema.extend({
+  protocolVersion: z.string(),
+  taskRef: idSchema,
+  expiresAt: timeSchema,
+});
+export const readDeltasRequestSchema = sessionRequestSchema.extend({ afterVersion: versionSchema });
+export const readDeltasResultSchema = z.object({
+  batches: z.array(batchSchema),
+  throughVersion: versionSchema,
+});
+export const feedbackReceiptSchema = z.object({
+  feedbackId: idSchema,
+  status: z.literal('recorded'),
+});
+export const closeSessionRequestSchema = mutationSchema.extend({
+  sessionId: idSchema,
+  expectedVersion: versionSchema,
+});
+export const capabilitiesSchema = z.object({
+  protocolVersions: z.array(z.string()),
+  protocolCommit: z.string(),
+  engineProfile: idSchema,
+  supportedScopeKinds: z.array(scopeKindSchema),
+  durability: z.enum(['durable', 'volatile']),
+  replayRetentionMs: z.number().positive(),
+  deltaHistoryMs: z.number().positive(),
+  limits: z.object({
+    observationBytes: z.number().positive(),
+    cueBytes: z.number().positive(),
+    activeCandidates: z.number().int().positive(),
+    sessionLifetimeMs: z.number().positive(),
+    retainedPayloadBytes: z.number().positive(),
+  }),
+  experimental: z.array(z.string()),
+});
+export type ScopeKind = z.infer<typeof scopeKindSchema>;
+export type ObserveRequest = z.infer<typeof observeRequestSchema>;
+export type ObserveReceipt = z.infer<typeof observeReceiptSchema>;
+export type ReadEvidenceRequest = z.infer<typeof readEvidenceRequestSchema>;
+export type Evidence = z.infer<typeof evidenceSchema>;
+export type OpenSessionRequest = z.infer<typeof openSessionRequestSchema>;
+export type AdvanceSessionRequest = z.infer<typeof advanceSchema>;
+export type ReadSessionRequest = z.infer<typeof sessionRequestSchema>;
+export type ReadDeltasRequest = z.infer<typeof readDeltasRequestSchema>;
+export type ReadDeltasResult = z.infer<typeof readDeltasResultSchema>;
+export type FeedbackRequest = z.infer<typeof feedbackSchema>;
+export type FeedbackReceipt = z.infer<typeof feedbackReceiptSchema>;
+export type CloseSessionRequest = z.infer<typeof closeSessionRequestSchema>;
+export type Capabilities = z.infer<typeof capabilitiesSchema>;

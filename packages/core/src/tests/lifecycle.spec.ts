@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest';
+
 import { harness, instant, observation } from './harness.js';
 
 it('separates admission from completion and applies delayed work once after a failed attempt', () => {

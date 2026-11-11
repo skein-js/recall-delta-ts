@@ -1,8 +1,9 @@
-import { afterEach, expect, it, vi } from 'vitest';
 import { createMemoryRecallStore, createRecallDelta } from '@skein-js/recall-delta';
+import { afterEach, expect, it, vi } from 'vitest';
+
+import { auditHindsightResponse } from '../experiments/hindsight.js';
 import { makeWarehouseGraph } from '../graph.js';
 import { createVertexPlanner } from '../planner.js';
-import { auditHindsightResponse } from '../experiments/hindsight.js';
 afterEach(() => vi.unstubAllEnvs());
 
 it('lets the context-only baseline investigate current state without historical memory', async () => {

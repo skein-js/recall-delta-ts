@@ -1,1 +1,1 @@
-pnpm exec nx run workspace:pre-commit
+pnpm exec nx run workspace:pre-commit --output-style=static

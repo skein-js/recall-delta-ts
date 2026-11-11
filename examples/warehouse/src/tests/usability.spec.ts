@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest';
+
 import { gradeUsability } from '../experiments/usability.js';
 it('requires independent participants and complete observations before awarding usability success', () => {
   const tasks = ['formation', 'explanation', 'correction', 'removal'];

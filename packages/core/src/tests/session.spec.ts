@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { applyBatch, createRecallDelta } from '../index.js';
+
+import { applyBatch, createRecallDelta, type FeedbackRequest, protocolVersion } from '../index.js';
 import { harness, instant, observation } from './harness.js';
 
 describe('admission, versioned sessions and retries', () => {
@@ -88,7 +89,7 @@ describe('admission, versioned sessions and retries', () => {
       expect.objectContaining({ type: 'candidate.updated', candidateId: first.candidateId }),
     );
     expect(client.readSession(session).candidates[0]?.factualConfidence).toBeNull();
-    const feedback = {
+    const feedback: FeedbackRequest = {
       requestId: 'feedback',
       sessionId: session.sessionId,
       candidateId: first.candidateId,
@@ -151,4 +152,63 @@ describe('admission, versioned sessions and retries', () => {
       }),
     ).toThrow('session_expired');
   });
+});
+
+it('replays a lost session-creation response after expiry within the receipt window', () => {
+  const { client, store, setTime } = harness();
+  const request = {
+    requestId: 'short-session',
+    protocolVersion,
+    taskRef: 'task',
+    expiresAt: new Date(instant + 1000).toISOString(),
+  };
+  const initial = client.openSession(request);
+  setTime(instant + 2000);
+  const before = store.read();
+  expect(client.openSession(request)).toEqual(initial);
+  expect(store.read()).toEqual(before);
+  expect(client.readSession(initial).status).toBe('expired');
+  expect(() => client.openSession({ ...request, taskRef: 'different-task' })).toThrow(
+    'id_conflict',
+  );
+  expect(() => client.openSession({ ...request, requestId: 'new-session' })).toThrow(
+    'invalid_request',
+  );
+});
+
+it('uses bounded deterministic profiles for long revisions and detects policy changes', () => {
+  const revision = 'long-policy-revision-'.repeat(100);
+  const a = harness({ policy: { revision } });
+  const b = harness({ policy: { revision } });
+  const c = harness({ policy: { revision, carry: 0 } });
+  const profile = a.client.describe().engineProfile;
+  expect(profile.length).toBeLessThanOrEqual(512);
+  expect(b.client.describe().engineProfile).toBe(profile);
+  expect(c.client.describe().engineProfile).not.toBe(profile);
+  const session = a.open();
+  expect(session.engineProfile).toBe(profile);
+  expect(
+    a.client.advanceSession({
+      requestId: 'advance',
+      sessionId: session.sessionId,
+      expectedVersion: 0,
+      cues: [],
+      evidenceIds: [],
+    }).engineProfile,
+  ).toBe(profile);
+  const changed = createRecallDelta({
+    store: a.store,
+    context: { tenantId: 'tenant', scopeId: 'private', principalId: 'alice' },
+    clock: () => instant,
+    policy: { revision, carry: 0 },
+  });
+  expect(() =>
+    changed.advanceSession({
+      requestId: 'changed',
+      sessionId: session.sessionId,
+      expectedVersion: 1,
+      cues: [],
+      evidenceIds: [],
+    }),
+  ).toThrowError(expect.objectContaining({ code: 'unsupported_feature' }));
 });

@@ -1,20 +1,22 @@
 import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
 import {
   applyBatch,
+  type ProcessingCapability,
   protocolVersion,
-  RecallError,
   type RecallDeltaClient,
+  RecallError,
   type Snapshot,
 } from '@skein-js/recall-delta';
+
 import { assembleCandidates, reconsider } from './context.js';
 import {
-  inputSchema,
-  planSchema,
-  verifyAction,
   type HostView,
+  inputSchema,
   type Mode,
   type Plan,
+  planSchema,
   type TraceEvent,
+  verifyAction,
   type WarehouseInput,
 } from './domain.js';
 import { fixturePlanner, type Planner } from './planner.js';
@@ -43,8 +45,9 @@ const State = Annotation.Root({
   }),
 });
 type StateValue = typeof State.State;
+export type WarehouseMemory = RecallDeltaClient & { experimental: ProcessingCapability };
 export interface WarehouseOptions {
-  memory: () => RecallDeltaClient;
+  memory: () => WarehouseMemory;
   mode: Mode;
   planner?: Planner;
   clock?: () => number;

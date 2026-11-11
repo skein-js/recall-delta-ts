@@ -1,4 +1,5 @@
-import { canonical, type Batch, type Candidate, type Snapshot } from '@skein-js/recall-delta';
+import { type Batch, type Candidate, canonical, type Snapshot } from '@skein-js/recall-delta';
+
 import type { HostView, Mode } from './domain.js';
 
 export const historicalContextByteLimit = 2000;

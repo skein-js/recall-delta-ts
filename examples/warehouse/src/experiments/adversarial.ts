@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+
 import { createMemoryRecallStore, createRecallDelta } from '@skein-js/recall-delta';
+
 import { makeWarehouseGraph } from '../graph.js';
 import { report } from '../scenario.js';
 

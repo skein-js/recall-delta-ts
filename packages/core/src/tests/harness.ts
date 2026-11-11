@@ -1,8 +1,8 @@
 import {
   createMemoryRecallStore,
   createRecallDelta,
-  protocolVersion,
   type Observation,
+  protocolVersion,
   type RecallOptions,
 } from '../index.js';
 export const instant = Date.parse('2026-11-11T10:00:00Z');

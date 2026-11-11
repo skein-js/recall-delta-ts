@@ -1,6 +1,7 @@
-import { z } from 'zod';
 import type { Candidate } from '@skein-js/recall-delta';
-import { planSchema, type Plan } from './domain.js';
+import { z } from 'zod';
+
+import { type Plan, planSchema } from './domain.js';
 
 export interface PlannerInput {
   cues: string[];

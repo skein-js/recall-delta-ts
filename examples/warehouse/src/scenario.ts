@@ -1,4 +1,5 @@
 import type { Observation } from '@skein-js/recall-delta';
+
 import type { WarehouseInput } from './domain.js';
 
 const observedAt = '2026-11-01T08:00:00Z';

@@ -1,19 +1,22 @@
 import { z } from 'zod';
+
 import {
-  contextSchema,
-  jsonSchema,
-  scopeGrantSchema,
+  type CallerContext,
   candidateSchema,
   changeSchema,
-  type CallerContext,
+  contextSchema,
+  type Evidence as PublicEvidence,
+  jsonSchema,
   type ScopeGrant,
+  scopeGrantSchema,
 } from './contracts.js';
 import {
   canonical,
+  createEngineProfile,
   defaultPolicy,
+  type MemoryPolicy,
   policySchema,
   retainedBytes,
-  type MemoryPolicy,
 } from './policy.js';
 import type { Evidence, RecallStore, SessionRecord, StoreState } from './store.js';
 
@@ -43,23 +46,40 @@ export interface RecallOptions {
   processingMode?: 'inline' | 'deferred';
   /** Explicit trusted operator capability; reveals the whole store's aggregate size. */
   allowGlobalAccounting?: boolean;
-  canReadEvidence?: (evidence: Evidence, context: CallerContext) => boolean;
+  canReadEvidence?: (evidence: PublicEvidence, context: CallerContext) => boolean;
 }
 export function createEnvironment(options: RecallOptions) {
   const context = parse(contextSchema, options.context);
   const policy = parse(policySchema, { ...defaultPolicy, ...options.policy });
   const scopeKey = canonical([context.tenantId, context.scopeId]);
   const clock = options.clock ?? Date.now;
-  function grant(action: 'read' | 'write' | 'maintain' | 'feedback'): ScopeGrant {
+  function scopeBinding(state: StoreState, access: ScopeGrant) {
+    const expected = {
+      tenantId: context.tenantId,
+      scopeId: context.scopeId,
+      kind: access.kind,
+      ownerId: access.kind === 'user-private' ? context.principalId : null,
+    };
+    const existing = state.scopes[scopeKey];
+    if (existing && canonical(existing) !== canonical(expected))
+      throw new RecallError('scope_unavailable');
+    return existing ?? expected;
+  }
+  function grant(
+    action: 'read' | 'write' | 'maintain' | 'feedback',
+    state = options.store.read(),
+  ): ScopeGrant {
     const access = parse(
       scopeGrantSchema,
-      options.grant?.() ?? {
-        kind: 'user-private',
-        feedbackWriters: [context.principalId],
-        readers: [context.principalId],
-        writers: [context.principalId],
-        maintainers: [context.principalId],
-      },
+      options.grant === undefined
+        ? {
+            kind: 'user-private',
+            feedbackWriters: [context.principalId],
+            readers: [context.principalId],
+            writers: [context.principalId],
+            maintainers: [context.principalId],
+          }
+        : options.grant(),
     );
     const permitted =
       action === 'read'
@@ -70,13 +90,15 @@ export function createEnvironment(options: RecallOptions) {
             ? access.feedbackWriters
             : access.maintainers;
     if (!permitted.includes(context.principalId)) throw new RecallError('scope_unavailable');
+    scopeBinding(state, access);
     return access;
   }
   function evidence(state: StoreState, evidenceId: string): Evidence {
-    const access = grant('read'),
+    const access = grant('read', state),
       record = state.evidence[evidenceId];
     if (
       !record ||
+      !state.scopes[scopeKey] ||
       record.scopeKey !== scopeKey ||
       record.revoked ||
       (access.kind === 'user-private' && record.principalId !== context.principalId) ||
@@ -95,10 +117,11 @@ export function createEnvironment(options: RecallOptions) {
     }
   }
   function session(state: StoreState, sessionId: string, requireOpen = false): SessionRecord {
-    grant('read');
+    grant('read', state);
     const record = state.sessions[sessionId];
     if (
       !record ||
+      !state.scopes[scopeKey] ||
       record.scopeKey !== scopeKey ||
       record.principalId !== context.principalId ||
       record.epoch !== (state.epochs[scopeKey] ?? 0)
@@ -120,8 +143,11 @@ export function createEnvironment(options: RecallOptions) {
     schema: z.ZodType<T>,
     execute: (state: StoreState) => T,
   ): T {
-    grant(operation === 'observe' ? 'write' : operation === 'recordFeedback' ? 'feedback' : 'read');
+    const access = grant(
+      operation === 'observe' ? 'write' : operation === 'recordFeedback' ? 'feedback' : 'read',
+    );
     return options.store.transact((state) => {
+      state.scopes[scopeKey] = scopeBinding(state, access);
       const now = clock(),
         epoch = state.epochs[scopeKey] ?? 0;
       for (const [key, receipt] of Object.entries(state.receipts))
@@ -179,7 +205,7 @@ export function createEnvironment(options: RecallOptions) {
     canRead,
     session,
     mutate,
-    engineProfile: `recall-delta:${canonical(policy)}`,
+    engineProfile: createEngineProfile(policy),
   };
 }
 export type Environment = ReturnType<typeof createEnvironment>;
