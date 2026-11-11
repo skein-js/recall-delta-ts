@@ -1,0 +1,180 @@
+{
+  "name": "examples-warehouse",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "examples/warehouse/src",
+  "projectType": "application",
+  "targets": {
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "skein dev --port 2024 --store sqlite --queue sqlite --host 127.0.0.1",
+        "cwd": "examples/warehouse"
+      },
+      "cache": false,
+      "inputs": [
+        "^default",
+        "{projectRoot}/**/*",
+        "!{projectRoot}/.skein/**/*",
+        "!{projectRoot}/**/*.{sqlite,sqlite3,db}",
+        "!{projectRoot}/**/*.{sqlite,sqlite3,db}-{wal,shm}",
+        "{workspaceRoot}/eslint.config.*",
+        "{workspaceRoot}/.prettier*",
+        "{workspaceRoot}/prettier.config.*",
+        "{workspaceRoot}/*lock*",
+        "{workspaceRoot}/pnpm-workspace.yaml",
+        {
+          "runtime": "node --version"
+        },
+        "!{projectRoot}/node_modules/**/*",
+        "!{projectRoot}/coverage/**/*",
+        "{workspaceRoot}/package.json",
+        "{workspaceRoot}/tsconfig.base.json"
+      ]
+    },
+    "dev:memory": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "skein dev --port 2024 --host 127.0.0.1",
+        "cwd": "examples/warehouse"
+      },
+      "cache": false,
+      "inputs": [
+        "^default",
+        "{projectRoot}/**/*",
+        "!{projectRoot}/.skein/**/*",
+        "!{projectRoot}/**/*.{sqlite,sqlite3,db}",
+        "!{projectRoot}/**/*.{sqlite,sqlite3,db}-{wal,shm}",
+        "{workspaceRoot}/eslint.config.*",
+        "{workspaceRoot}/.prettier*",
+        "{workspaceRoot}/prettier.config.*",
+        "{workspaceRoot}/*lock*",
+        "{workspaceRoot}/pnpm-workspace.yaml",
+        {
+          "runtime": "node --version"
+        },
+        "!{projectRoot}/node_modules/**/*",
+        "!{projectRoot}/coverage/**/*",
+        "{workspaceRoot}/package.json",
+        "{workspaceRoot}/tsconfig.base.json"
+      ]
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "skein build --artifact-only",
+        "cwd": "examples/warehouse"
+      },
+      "cache": true,
+      "inputs": [
+        "production",
+        "^production",
+        {
+          "runtime": "node --version"
+        }
+      ],
+      "outputs": ["{projectRoot}/.skein/build"],
+      "dependsOn": ["^build"]
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "skein start -c .skein/build/langgraph.json --store sqlite --queue sqlite --host 127.0.0.1",
+        "cwd": "examples/warehouse"
+      },
+      "cache": false,
+      "inputs": [
+        "^default",
+        "{projectRoot}/**/*",
+        "!{projectRoot}/.skein/**/*",
+        "!{projectRoot}/**/*.{sqlite,sqlite3,db}",
+        "!{projectRoot}/**/*.{sqlite,sqlite3,db}-{wal,shm}",
+        "{workspaceRoot}/eslint.config.*",
+        "{workspaceRoot}/.prettier*",
+        "{workspaceRoot}/prettier.config.*",
+        "{workspaceRoot}/*lock*",
+        "{workspaceRoot}/pnpm-workspace.yaml",
+        {
+          "runtime": "node --version"
+        },
+        "!{projectRoot}/node_modules/**/*",
+        "!{projectRoot}/coverage/**/*",
+        "{workspaceRoot}/package.json",
+        "{workspaceRoot}/tsconfig.base.json"
+      ],
+      "dependsOn": ["build"]
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit",
+        "cwd": "examples/warehouse"
+      },
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vitest run",
+        "cwd": "examples/warehouse"
+      },
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "dependsOn": ["^build"]
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "options": {
+        "command": "eslint examples/warehouse/src examples/warehouse/vitest.config.ts"
+      }
+    },
+    "demo": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["^build"],
+      "options": {
+        "command": "tsx src/cli.ts",
+        "cwd": "examples/warehouse"
+      }
+    },
+    "demo-vertex": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["^build"],
+      "options": {
+        "command": "tsx src/cli.ts --vertex",
+        "cwd": "examples/warehouse"
+      }
+    },
+    "experiment": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["^build"],
+      "options": {
+        "command": "tsx src/experiments/run.ts",
+        "cwd": "examples/warehouse"
+      }
+    },
+    "inspect": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["^build"],
+      "options": {
+        "command": "tsx src/inspect.ts",
+        "cwd": "examples/warehouse"
+      }
+    },
+    "smoke-artifact": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["build"],
+      "options": {
+        "command": "tsx src/tests/artifact-smoke.ts",
+        "cwd": "examples/warehouse"
+      }
+    }
+  },
+  "tags": ["platform:node", "type:example"]
+}

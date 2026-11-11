@@ -1,0 +1,31 @@
+{
+  "name": "@skein-js/recall-delta",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "Recall Delta deterministic reference memory engine",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/skein-js/recall-delta-ts.git",
+    "directory": "packages/core"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "dependencies": {
+    "zod": "4.6.7"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

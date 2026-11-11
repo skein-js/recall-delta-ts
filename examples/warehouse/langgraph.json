@@ -1,0 +1,10 @@
+{
+  "node_version": "24",
+  "graphs": {
+    "warehouse": "./src/runtime-graph.ts:graph"
+  },
+  "env": ".env",
+  "http": {
+    "console": true
+  }
+}

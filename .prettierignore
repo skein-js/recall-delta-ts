@@ -1,0 +1,12 @@
+node_modules
+dist
+.nx
+.skein
+pnpm-lock.yaml
+reports
+.agents
+.claude
+.codex
+.cursor
+.gemini
+.opencode

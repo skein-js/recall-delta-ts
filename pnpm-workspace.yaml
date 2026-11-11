@@ -1,0 +1,17 @@
+packages:
+  - 'packages/*'
+  - 'examples/*'
+allowBuilds:
+  '@swc/core': true
+  better-sqlite3: true
+  esbuild: true
+  nx: true
+  msgpackr-extract: false
+minimumReleaseAgeExclude:
+  - '@langchain/core@1.3.7'
+
+overrides:
+  '@skein-js/config>@langchain/langgraph-api': 1.4.2
+
+nodeVersion: 24.15.0
+engineStrict: true

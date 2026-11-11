@@ -1,0 +1,25 @@
+{
+  "name": "@skein-js/recall-delta-warehouse",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^22.12.0 || ^24.0.0 || ^26.0.0"
+  },
+  "dependencies": {
+    "@langchain/core": "1.3.7",
+    "@langchain/langgraph": "1.7.3",
+    "@langchain/langgraph-checkpoint": "^1.1.3",
+    "@langchain/langgraph-checkpoint-sqlite": "~1.0.4",
+    "@skein-js/local": "1.0.0-beta.1",
+    "@skein-js/recall-delta": "workspace:*",
+    "@skein-js/recall-delta-sqlite": "workspace:*",
+    "@langchain/google-vertexai": "2.3.6",
+    "@skein-js/agent-protocol": "1.0.0-beta.1",
+    "zod": "4.6.7",
+    "better-sqlite3": "^12.10.0"
+  },
+  "devDependencies": {
+    "skein-js": "1.0.0-beta.1"
+  }
+}

@@ -1,0 +1,1 @@
+pnpm exec nx run workspace:pre-commit

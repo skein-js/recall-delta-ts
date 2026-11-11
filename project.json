@@ -1,0 +1,56 @@
+{
+  "name": "workspace",
+  "projectType": "application",
+  "tags": ["platform:node", "type:tooling"],
+  "targets": {
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --write ."
+      }
+    },
+    "format-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --check ."
+      }
+    },
+    "pre-commit": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx tools/check-staged.ts"
+      }
+    },
+    "verify": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "nx run workspace:format-check --output-style=static && nx run-many -t lint typecheck test test-integration build --output-style=static && nx run examples-warehouse:experiment --output-style=static && nx run examples-warehouse:smoke-artifact --output-style=static"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{workspaceRoot}/tools/**/*",
+        "{workspaceRoot}/tsconfig.tools.json",
+        "sharedGlobals"
+      ],
+      "options": {
+        "command": "tsc -p tsconfig.tools.json"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{workspaceRoot}/tools/**/*",
+        "{workspaceRoot}/eslint.config.mjs",
+        "sharedGlobals"
+      ],
+      "options": {
+        "command": "eslint tools eslint.config.mjs"
+      }
+    }
+  }
+}

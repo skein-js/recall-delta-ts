@@ -1,0 +1,39 @@
+{
+  "name": "sqlite",
+  "sourceRoot": "packages/sqlite/src",
+  "projectType": "library",
+  "tags": ["platform:node", "type:library"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p tsconfig.lib.json",
+        "cwd": "packages/sqlite"
+      },
+      "outputs": ["{projectRoot}/dist"]
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p tsconfig.json",
+        "cwd": "packages/sqlite"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "options": {
+        "command": "eslint packages/sqlite/src packages/sqlite/vitest*.config.ts"
+      }
+    },
+    "test-integration": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["build"],
+      "options": {
+        "command": "vitest run --config vitest.integration.config.ts",
+        "cwd": "packages/sqlite"
+      }
+    }
+  }
+}
